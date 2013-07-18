@@ -421,6 +421,7 @@ automatically from there on.
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  18 Jul 2013: | fixed computing a hash key for a sub-web on MS Windows due to differences in Cwd::abs_path |
 |  10 Jul 2013: | fixed querying non-standard %META data; \
                   improved %DBDUMP to show non-standard %META data |
 |  06 May 2013: | fixed =updateCache= rest handler to pick up changes on the filesystem reliably |

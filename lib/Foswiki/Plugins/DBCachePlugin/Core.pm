@@ -1103,23 +1103,14 @@ sub formatRecursive {
 sub getWebKey {
   my $web = shift;
 
-  my $key = $webKeys{$web};
-  return $key if defined $key;
+  $web =~ s/\./\//go;
 
-  unless(Foswiki::Sandbox::validateWebName($web, 1)) {
-#   if (DEBUG) {
-#     require Devel::StackTrace;
-#     my $trace = Devel::StackTrace->new;
-#     writeDebug($trace->as_string);
-#   }
-#   die "invalid webname $web";
-    return;
+  unless (defined $webKeys{$web}) {
+    return unless Foswiki::Sandbox::validateWebName($web, 1);
+    $webKeys{$web} = Cwd::fast_abs_path($Foswiki::cfg{DataDir} . '/' . $web);
   }
 
-  $web =~ s/\//\./go;
-  $key = $webKeys{$web} = Cwd::abs_path($Foswiki::cfg{DataDir} . '/' . $web);
-
-  return $key;
+  return $webKeys{$web};
 }
 
 ###############################################################################
