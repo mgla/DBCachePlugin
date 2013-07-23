@@ -1107,7 +1107,9 @@ sub getWebKey {
 
   unless (defined $webKeys{$web}) {
     return unless Foswiki::Sandbox::validateWebName($web, 1);
-    $webKeys{$web} = Cwd::fast_abs_path($Foswiki::cfg{DataDir} . '/' . $web);
+    my $dir = $Foswiki::cfg{DataDir} . '/' . $web;
+    return unless -d $dir;
+    $webKeys{$web} = Cwd::fast_abs_path($dir);
   }
 
   return $webKeys{$web};
