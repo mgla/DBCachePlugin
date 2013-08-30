@@ -479,6 +479,7 @@ sub expandPath {
     } else {
       if ($result =~ /^(.*)\.(.*?)$/) {
         my $db = Foswiki::Plugins::DBCachePlugin::Core::getDB($1);
+        return '' unless defined $db;
         $root = $db->fastget($2);
         return $db->expandPath($root, $tail);
       } else {

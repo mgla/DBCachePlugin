@@ -112,10 +112,15 @@ sub afterSaveHandler {
 
   #writeDebug("called afterSaveHandler($web, $topic, $newWeb, $newTopic, ..., ...)");
 
-  $newWeb ||= $baseWeb;
-  $newTopic ||= $baseTopic;
+  $newWeb ||= $web;
+  $newTopic ||= $topic;
 
   my $db = getDB($web);
+  unless ($db) {
+    print STDERR "WARNING: DBCachePlugin can't get cache for web '$web'\n";
+    return;
+  }
+
   $db->loadTopic($web, $topic);
 
   # move/rename 
@@ -125,6 +130,10 @@ sub afterSaveHandler {
     }
   } else { # crossing webs
     $db = getDB($newWeb); 
+    unless ($db) {
+      print STDERR "WARNING: DBCachePlugin can't get cache for web '$newWeb'\n";
+      return;
+    }
     $db->loadTopic($newWeb, $topic);
     if ($topic ne $newTopic) {
       $db->loadTopic($newWeb, $newTopic)
@@ -142,6 +151,10 @@ sub loadTopic {
   my ($web, $topic) = @_;
 
   my $db = getDB($web);
+  unless ($db) {
+    print STDERR "WARNING: DBCachePlugin can't get cache for web '$web'\n";
+    return;
+  }
   return $db->loadTopic($web, $topic);
 }
 
@@ -167,7 +180,7 @@ sub handleNeighbours {
 
   
   my $db = getDB($theWeb);
-  return inlineError("ERROR: DBPREV/DBNEXT unknown web $theWeb") unless $db;
+  return inlineError("ERROR: DBPREV/DBNEXT unknown web '$theWeb'") unless $db;
 
   my ($prevTopic, $nextTopic) = $db->getNeighbourTopics($theTopic, $theSearch, $theOrder, $theReverse);
 
@@ -391,8 +404,8 @@ sub findTopicMethod {
   # get form object
   my $baseDB = getDB($thisWeb);
   unless ($baseDB) {
-    print STDERR "can't get dbcache for '$thisWeb'\n";
-    return undef;
+    print STDERR "WARNING: DBCachePlugin can't get cache for web '$thisWeb'\n";
+    return;
   }
 
   #writeDebug("1");
@@ -454,13 +467,13 @@ sub findTopicMethod {
     my $theMethod = $topicType.$theTopic;
     my $targetDB = getDB($targetWeb);
     #writeDebug("checking $targetWeb.$theMethod");
-    return ($targetWeb, $theMethod) if $targetDB->fastget($theMethod);
+    return ($targetWeb, $theMethod) if $targetDB && $targetDB->fastget($theMethod);
 
     #writeDebug("6");
   }
 
   #writeDebug("5");
-  return undef;
+  return;
 }
 
 ###############################################################################
@@ -515,7 +528,7 @@ sub handleDBCALL {
 
   # get web and topic
   my $thisDB = getDB($thisWeb);
-  return inlineError("ERROR: DBALL can't find web $thisWeb") unless $thisDB;
+  return inlineError("ERROR: DBALL can't find web '$thisWeb'") unless $thisDB;
 
   my $topicObj = $thisDB->fastget($thisTopic);
   unless ($topicObj) {
@@ -671,6 +684,8 @@ sub handleDBSTATS {
   my $wikiName = Foswiki::Func::getWikiName();
   my %statistics = ();
   my $theDB = getDB($thisWeb);
+  return inlineError("ERROR: DBSTATS can't find web '$thisWeb'") unless $theDB;
+
   my @topicNames = $theDB->getKeys();
   foreach my $topicName (@topicNames) { # loop over all topics
     my $topicObj = $theDB->fastget($topicName);
@@ -932,6 +947,7 @@ sub dbDump {
   my ($web, $topic) = @_;
 
   my $theDB = getDB($web);
+  return inlineError("ERROR: DBDUMP can't find web '$web'") unless $theDB;
 
   my $topicObj = $theDB->fastget($topic) || '';
   unless ($topicObj) {
@@ -984,6 +1000,8 @@ sub handleDBRECURSE {
 
   # query topics
   my $theDB = getDB($thisWeb);
+  return inlineError("ERROR: DBRECURSE can't find web '$thisWeb'") unless $theDB;
+
   $params->{_count} = 0;
   my $result = formatRecursive($theDB, $thisWeb, $thisTopic, $params);
 

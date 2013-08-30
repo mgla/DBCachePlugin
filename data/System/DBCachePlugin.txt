@@ -421,6 +421,7 @@ automatically from there on.
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  30 Aug 2013: | fixed crashes when calling API on non-existing web |
 |  23 Jul 2013: | fixed crashing page when trying to load a cache for a non-existing sub-web |
 |  18 Jul 2013: | fixed computing a hash key for a sub-web on MS Windows due to differences in Cwd::abs_path |
 |  10 Jul 2013: | fixed querying non-standard %META data; \
