@@ -25,8 +25,8 @@ use Foswiki::Plugins();
 #Monitor::MonitorMethod('Foswiki::Contrib::DBCachePlugin::Core');
 #Monitor::MonitorMethod('Foswiki::Contrib::DBCachePlugin::WebDB');
 
-use version; our $VERSION = version->declare("v5.4.3");
-our $RELEASE = '30 Aug 2013';
+our $VERSION = '5.44';
+our $RELEASE = '5.44';
 our $NO_PREFS_IN_TOPIC = 1;
 our $SHORTDESCRIPTION = 'Lightweighted frontend to the DBCacheContrib';
 
@@ -127,6 +127,7 @@ sub restUpdateCache {
   my $query = Foswiki::Func::getRequestObject();
 
   my $theWeb = $query->param('web');
+  my $theDebug = Foswiki::Func::isTrue($query->param('debug'), 0);
   my @webs;
 
   if ($theWeb) {
@@ -136,6 +137,7 @@ sub restUpdateCache {
   }
 
   foreach my $web (sort @webs) {
+    print STDERR "refreshing $web\n" if $theDebug;
     getDB($web, 2);
   }
 

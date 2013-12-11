@@ -401,7 +401,7 @@ sub dbQuery {
 sub expandPath {
   my ($this, $theRoot, $thePath) = @_;
 
-  return '' if !defined($thePath) || !defined($theRoot);
+  return '' if !defined($thePath) || !defined($theRoot) || $thePath eq '';
 #  $thePath =~ s/^\.//o;
 #  $thePath =~ s/\[([^\]]+)\]/$1/o;
 
