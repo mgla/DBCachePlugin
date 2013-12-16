@@ -402,8 +402,6 @@ sub expandPath {
   my ($this, $theRoot, $thePath) = @_;
 
   return '' if !defined($thePath) || !defined($theRoot) || $thePath eq '';
-#  $thePath =~ s/^\.//o;
-#  $thePath =~ s/\[([^\]]+)\]/$1/o;
 
   #print STDERR "DEBUG: expandPath($theRoot, $thePath)\n";
 
@@ -472,6 +470,7 @@ sub expandPath {
   if ($thePath =~ /^@([^\.]+)(.*)$/) {
     my $first = $1;
     my $tail = $2;
+    $tail =~ s/^\.//;
     my $result = $this->expandPath($theRoot, $first);
     my $root;
     if (ref($result)) {
