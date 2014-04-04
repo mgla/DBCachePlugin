@@ -87,12 +87,12 @@ sub initPlugin {
     return Foswiki::Plugins::DBCachePlugin::Core::handleTOPICTITLE(@_);
   });
 
-  Foswiki::Func::registerRESTHandler('updateCache', \&restUpdateCache);
+  Foswiki::Func::registerRESTHandler('updateCache', \&restUpdateCache, authenticate => 0);
 
   Foswiki::Func::registerRESTHandler('dbdump', sub {
     initCore();
     return Foswiki::Plugins::DBCachePlugin::Core::restDBDUMP(@_);
-  });
+  }, authenticate => 0);
 
   # SMELL: remove this when Foswiki::Cache got into the core
   my $cache = $Foswiki::Plugins::SESSION->{cache}
