@@ -33,7 +33,7 @@ our $dbQueryCurrentWeb;
 our $doRefresh;
 our $TranslationToken = "\0";
 
-use constant DEBUG => 0; # toggle me
+use constant TRACE => 0; # toggle me
 
 use Foswiki::Contrib::DBCacheContrib ();
 use Foswiki::Contrib::DBCacheContrib::Search ();
@@ -45,8 +45,8 @@ use Cwd;
 
 ###############################################################################
 sub writeDebug {
-  #Foswiki::Func::writeDebug('- DBCachePlugin - '.$_[0]) if DEBUG;
-  print STDERR "- DBCachePlugin::Core - $_[0]\n" if DEBUG;
+  #Foswiki::Func::writeDebug('- DBCachePlugin - '.$_[0]) if TRACE;
+  print STDERR "- DBCachePlugin::Core - $_[0]\n" if TRACE;
 }
 
 ###############################################################################

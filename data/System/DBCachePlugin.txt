@@ -421,6 +421,7 @@ automatically from there on.
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  04 Apr 2014: | flag rest handlers that don't require authentication |
 |  15 Dec 2013: | fixed @Ref operator |
 |  30 Aug 2013: | fixed crashes when calling API on non-existing web |
 |  23 Jul 2013: | fixed crashing page when trying to load a cache for a non-existing sub-web |

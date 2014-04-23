@@ -1,6 +1,6 @@
 # Plugin for Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# Copyright (C) 2005-2013 Michael Daum http://michaeldaumconsulting.com
+# Copyright (C) 2005-2014 Michael Daum http://michaeldaumconsulting.com
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -25,8 +25,8 @@ use Foswiki::Plugins();
 #Monitor::MonitorMethod('Foswiki::Contrib::DBCachePlugin::Core');
 #Monitor::MonitorMethod('Foswiki::Contrib::DBCachePlugin::WebDB');
 
-our $VERSION = '5.45';
-our $RELEASE = '5.45';
+our $VERSION = '5.46';
+our $RELEASE = '5.46';
 our $NO_PREFS_IN_TOPIC = 1;
 our $SHORTDESCRIPTION = 'Lightweighted frontend to the DBCacheContrib';
 
@@ -108,6 +108,13 @@ sub initPlugin {
   $isEnabledRenameHandler = 1;
 
   return 1;
+}
+
+###############################################################################
+sub finishPlugin {
+
+  my $session = $Foswiki::Plugins::SESSION;
+  delete $session->{dbcalls};
 }
 
 ###############################################################################

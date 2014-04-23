@@ -27,7 +27,7 @@ use Foswiki::Attrs ();
 use Foswiki::Time ();
 use Error qw(:try);
 
-use constant DEBUG => 0; # toggle me
+use constant TRACE => 0; # toggle me
 
 @Foswiki::Plugins::DBCachePlugin::WebDB::ISA = ("Foswiki::Contrib::DBCacheContrib");
 
@@ -52,7 +52,7 @@ sub new {
 
 ###############################################################################
 sub writeDebug {
-  print STDERR "- DBCachePlugin::WebDB - $_[0]\n" if DEBUG;
+  print STDERR "- DBCachePlugin::WebDB - $_[0]\n" if TRACE;
 }
 
 
