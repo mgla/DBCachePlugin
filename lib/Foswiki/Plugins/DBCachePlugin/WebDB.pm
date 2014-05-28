@@ -1,6 +1,6 @@
 # Plugin for Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# Copyright (C) 2005-2013 Michael Daum http://michaeldaumconsulting.com
+# Copyright (C) 2005-2014 Michael Daum http://michaeldaumconsulting.com
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -512,7 +512,7 @@ sub expandPath {
 sub checkAccessPermission {
   my ($this, $mode, $user, $topic) = @_;
 
-#print STDERR "called checkAccessPermission($mode, $user, $topic) ... ";
+  #print STDERR "called checkAccessPermission($mode, $user, $topic) ... ";
 
   my $cUID;
   my $session = $Foswiki::Plugins::SESSION;
@@ -534,32 +534,45 @@ sub checkAccessPermission {
   my $allow = $this->getACL($topic, 'ALLOWTOPIC' . $mode);
   my $deny = $this->getACL($topic, 'DENYTOPIC' . $mode);
 
+  my $isDeprecatedEmptyDeny =
+    !defined($Foswiki::cfg{AccessControlACL}{EnableDeprecatedEmptyDeny}) || $Foswiki::cfg{AccessControlACL}{EnableDeprecatedEmptyDeny};
+
   # Check DENYTOPIC
   if (defined($deny)) {
     if (scalar(@$deny) != 0) {
       if ($users->isInUserList($cUID, $deny)) {
-#print STDERR "1: DENY user=$user mode=$mode topic=".$topic->fastget('name'). "\n";
+        #print STDERR "1: DENY user=$user mode=$mode topic=".$topic->fastget('name'). "\n";
         return 0;
       }
     } else {
 
-      # If DENYTOPIC is empty, don't deny _anyone_
-#print STDERR "2: result = 1\n";
-      return 1;
+      if ($isDeprecatedEmptyDeny) {
+        # If DENYTOPIC is empty, don't deny _anyone_
+        #print STDERR "2: result = 1\n";
+        return 1;
+      } else {
+        $deny = undef;
+      }
     }
   }
 
   # Check ALLOWTOPIC. If this is defined the user _must_ be in it
   if (defined($allow) && scalar(@$allow) != 0) {
-    if ($users->isInUserList($cUID, $allow)) {
-#print STDERR "3: result = 1\n";
+    if (!$isDeprecatedEmptyDeny && grep {/^\*$/} @$allow) {
+      # ALLOWTOPIC is *, don't deny _anyone_
+      #print STDERR "3: result = 1\n";
       return 1;
     }
-#print STDERR "2: DENY user=$user mode=$mode topic=".$topic->fastget('name'). "\n";
+
+    if ($users->isInUserList($cUID, $allow)) {
+      #print STDERR "4: result = 1\n";
+      return 1;
+    }
+
+    #print STDERR "5: DENY user=$user mode=$mode topic=".$topic->fastget('name'). "\n";
     return 0;
   }
 
-#print STDERR "5: result = 1\n";
   return 1;
 }
 
@@ -574,7 +587,7 @@ sub getACL {
   return unless defined $topic;
 
   my $text = $this->getPreference($topic, $mode);
-#print STDERR "getACL($topic, $mode), text=".($text||'')."\n";
+  #print STDERR "getACL($topic, $mode), text=".($text||'')."\n";
   return unless defined $text;
 
   # Remove HTML tags (compatibility, inherited from Users.pm

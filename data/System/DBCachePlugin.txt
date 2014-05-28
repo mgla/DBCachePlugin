@@ -416,11 +416,12 @@ automatically from there on.
    * Set SHORTDESCRIPTION = Lightweight frontend to the <nop>DBCacheContrib
 -->
 |  Author: | Michael Daum |
-|  Copyright &copy;: | 2005-2013, Michael Daum http://michaeldaumconsulting.com |
+|  Copyright &copy;: | 2005-2014, Michael Daum http://michaeldaumconsulting.com |
 |  License: | GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]]) |
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  28 May 2014: | implemented new ACL style compatible with Foswiki >= 1.2 |
 |  04 Apr 2014: | flag rest handlers that don't require authentication |
 |  15 Dec 2013: | fixed @Ref operator |
 |  30 Aug 2013: | fixed crashes when calling API on non-existing web |
