@@ -25,13 +25,11 @@ use Foswiki::Plugins();
 #Monitor::MonitorMethod('Foswiki::Contrib::DBCachePlugin::Core');
 #Monitor::MonitorMethod('Foswiki::Contrib::DBCachePlugin::WebDB');
 
-our $VERSION = '5.47';
-our $RELEASE = '5.47';
+our $VERSION = '6.00';
+our $RELEASE = '6.00';
 our $NO_PREFS_IN_TOPIC = 1;
 our $SHORTDESCRIPTION = 'Lightweighted frontend to the DBCacheContrib';
 
-our $baseWeb;
-our $baseTopic;
 our $isInitialized;
 our $addDependency;
 our $isEnabledSaveHandler;
@@ -40,7 +38,6 @@ our $isEnabledRenameHandler;
 ###############################################################################
 # plugin initializer
 sub initPlugin {
-  ($baseTopic, $baseWeb) = @_;
 
   Foswiki::Func::registerTagHandler('DBQUERY', sub {
     initCore();
@@ -87,12 +84,20 @@ sub initPlugin {
     return Foswiki::Plugins::DBCachePlugin::Core::handleTOPICTITLE(@_);
   });
 
-  Foswiki::Func::registerRESTHandler('updateCache', \&restUpdateCache, authenticate => 0);
+  Foswiki::Func::registerRESTHandler('updateCache', \&restUpdateCache, 
+    authenticate => 1,
+    validate => 0,
+    http_allow => 'GET,POST',
+  );
 
   Foswiki::Func::registerRESTHandler('dbdump', sub {
     initCore();
     return Foswiki::Plugins::DBCachePlugin::Core::restDBDUMP(@_);
-  }, authenticate => 0);
+  }, 
+    authenticate => 1,
+    validate => 0,
+    http_allow => 'GET,POST',
+  );
 
   # SMELL: remove this when Foswiki::Cache got into the core
   my $cache = $Foswiki::Plugins::SESSION->{cache}
@@ -123,7 +128,7 @@ sub initCore {
   $isInitialized = 1;
 
   require Foswiki::Plugins::DBCachePlugin::Core;
-  Foswiki::Plugins::DBCachePlugin::Core::init($baseWeb, $baseTopic);
+  Foswiki::Plugins::DBCachePlugin::Core::init();
 }
 
 ###############################################################################

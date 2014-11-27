@@ -27,8 +27,6 @@ our $webNameRegex;
 our $defaultWebNameRegex;
 our $linkProtocolPattern;
 our $tagNameRegex;
-our $baseWeb;
-our $baseTopic;
 our $dbQueryCurrentWeb;
 our $doRefresh;
 our $TranslationToken = "\0";
@@ -38,6 +36,7 @@ use constant TRACE => 0; # toggle me
 use Foswiki::Contrib::DBCacheContrib ();
 use Foswiki::Contrib::DBCacheContrib::Search ();
 use Foswiki::Plugins::DBCachePlugin::WebDB ();
+use Foswiki::Plugins ();
 use Foswiki::Sandbox ();
 use Foswiki::Time ();
 use Foswiki::Func ();
@@ -51,7 +50,6 @@ sub writeDebug {
 
 ###############################################################################
 sub init {
-  ($baseWeb, $baseTopic) = @_;
 
   my $query = Foswiki::Func::getCgiQuery();
   my $memoryCache = $Foswiki::cfg{DBCachePlugin}{MemoryCache};
@@ -164,6 +162,8 @@ sub handleNeighbours {
 
   #writeDebug("called handleNeighbours($web, $topic)");
 
+  my $baseWeb = $session->{webName};
+  my $baseTopic = $session->{topicName};
   my ($theWeb, $theTopic) = Foswiki::Func::normalizeWebTopicName($params->{web} || $baseWeb, $params->{topic} || $baseTopic);
 
   my $theSearch = $params->{_DEFAULT};
@@ -209,6 +209,8 @@ sub handleNeighbours {
 sub handleTOPICTITLE {
   my ($session, $params, $theTopic, $theWeb) = @_;
 
+  my $baseWeb = $session->{webName};
+  my $baseTopic = $session->{topicName};
   my $thisTopic = $params->{_DEFAULT} || $params->{topic} || $baseTopic;
   my $thisWeb = $params->{web} || $baseWeb;
   my $theEncoding = $params->{encode} || '';
@@ -229,6 +231,7 @@ sub handleTOPICTITLE {
 
   return '' if $theHideAutoInc && $topicTitle =~ /X{10}|AUTOINC\d/;
 
+  return quoteEncode($topicTitle) if $theEncoding eq 'quotes';
   return urlEncode($topicTitle) if $theEncoding eq 'url';
   return entityEncode($topicTitle) if $theEncoding eq 'entity';
 
@@ -271,6 +274,8 @@ sub handleDBQUERY {
   #writeDebug("called handleDBQUERY("   $params->stringify() . ")");
 
   # params
+  my $baseWeb = $session->{webName};
+  my $baseTopic = $session->{topicName};
   my $theSearch = $params->{_DEFAULT} || $params->{search};
   my $thisTopic = $params->{topic} || '';
   my $thisWeb = $params->{web} || $baseWeb;
@@ -493,6 +498,8 @@ sub handleDBCALL {
   }
 
 
+  my $baseWeb = $session->{webName};
+  my $baseTopic = $session->{topicName};
   my $thisWeb = $baseWeb; # Note: default to $baseWeb and _not_ to $theWeb
   ($thisWeb, $thisTopic) = Foswiki::Func::normalizeWebTopicName($thisWeb, $thisTopic);
 
@@ -638,6 +645,8 @@ sub handleDBSTATS {
   writeDebug("called handleDBSTATS");
 
   # get args
+  my $baseWeb = $session->{webName};
+  my $baseTopic = $session->{topicName};
   my $theSearch = $params->{_DEFAULT} || $params->{search} || '';
   my $thisWeb = $params->{web} || $baseWeb;
   my $thisTopic = $params->{topic} || $baseTopic;
@@ -832,6 +841,8 @@ sub handleDBDUMP {
 
   #writeDebug("called handleDBDUMP");
 
+  my $baseWeb = $session->{webName};
+  my $baseTopic = $session->{topicName};
   my $thisTopic = $params->{_DEFAULT} || $baseTopic;
   my $thisWeb = $params->{web} || $baseWeb;
   ($thisWeb, $thisTopic) = Foswiki::Func::normalizeWebTopicName($thisWeb, $thisTopic);
@@ -946,6 +957,11 @@ sub _dbDumpMap {
 sub dbDump {
   my ($web, $topic) = @_;
 
+  my $session = $Foswiki::Plugins::SESSION;
+
+  return inlineError("ERROR: access denied")
+    unless Foswiki::Func::checkAccessPermission("VIEW", $session->{user}, undef, $topic, $web);
+
   my $theDB = getDB($web);
   return inlineError("ERROR: DBDUMP can't find web '$web'") unless $theDB;
 
@@ -956,7 +972,7 @@ sub dbDump {
   my $result = "\n<noautolink>\n";
   $result .= "---++ [[$web.$topic]]\n";
   $result .= _dbDumpMap($topicObj);
-  return $result."\n</noautolink>\n";
+  return $result . "\n</noautolink>\n";
 }
 
 ###############################################################################
@@ -965,6 +981,8 @@ sub handleDBRECURSE {
 
   #writeDebug("called handleDBRECURSE(" . $params->stringify() . ")");
 
+  my $baseWeb = $session->{webName};
+  my $baseTopic = $session->{topicName};
   my $thisTopic = $params->{_DEFAULT} || $params->{topic} || $baseTopic;
   my $thisWeb = $params->{web} || $baseWeb;
 
@@ -1166,6 +1184,8 @@ sub getDB {
 
   if ($isModified || $refresh) {
     #writeDebug("need to load again");
+    my $baseWeb = $Foswiki::Plugins::SESSION->{webName};
+    my $baseTopic = $Foswiki::Plugins::SESSION->{topicName};
     $db->load($refresh, $baseWeb, $baseTopic);
     $webDBIsModified{$webKey} = 0;
   }
@@ -1339,6 +1359,16 @@ sub entityDecode {
   $text =~ s/&#(\d+);/chr($1)/ge;
   return $text;
 }
+
+###############################################################################
+sub quoteEncode {
+  my $text = shift;
+
+  $text =~ s/\"/\\"/go;
+
+  return $text;
+}
+
 
 ###############################################################################
 sub urlEncode {
