@@ -20,7 +20,6 @@ use warnings;
 use POSIX ();
 
 our %webDB;
-our %webDBIsModified;
 our %webKeys;
 our $wikiWordRegex;
 our $webNameRegex;
@@ -71,7 +70,6 @@ sub init {
     %webDB = ();
   }
 
-  %webDBIsModified = ();
   %webKeys = ();
 
   $wikiWordRegex = Foswiki::Func::getRegularExpression('wikiWordRegex');
@@ -123,6 +121,7 @@ sub afterSaveHandler {
 
   # move/rename 
   if ($newWeb eq $web) {
+
     if ($topic ne $newTopic) {
       $db->loadTopic($web, $newTopic)
     }
@@ -716,7 +715,7 @@ sub handleDBSTATS {
       }
       next unless $fieldValue; # unless present
       $fieldValue = formatTime($fieldValue) if $field =~ /created(ate)?|modified/;
-      writeDebug("reading field $field found $fieldValue");
+      #writeDebug("reading field $field found $fieldValue");
 
       foreach my $item (split(/$theSplit/, $fieldValue)) {
         while ($item =~ /$thePattern/g) { # loop over all occurrences of the pattern
@@ -1157,7 +1156,7 @@ sub getDB {
 
   $refresh = $doRefresh unless defined $refresh;
 
-  #writeDebug("called getDB($theWeb, $refresh)");
+  writeDebug("called getDB($theWeb, ".($refresh||0).")");
 
   my $webKey = getWebKey($theWeb);
   return unless defined $webKey; # invalid webname
@@ -1166,20 +1165,10 @@ sub getDB {
 
   my $db = $webDB{$webKey};
   my $isModified = 1;
+  $isModified = $db->getArchivist->isModified() if $db;
 
-  unless (defined $db) {
+  if ($isModified) {
     $db = $webDB{$webKey} = newDB($theWeb);
-  } else {
-    $isModified = $webDBIsModified{$webKey};
-    unless (defined $isModified) {
-      $isModified = $webDBIsModified{$webKey} = $db->getArchivist->isModified();
-      #writeDebug("reading from archivist isModified=$isModified");
-    } else {
-      #writeDebug("already got isModified=$isModified");
-    }
-    if ($isModified) {
-      $db = $webDB{$webKey} = newDB($theWeb);
-    }
   }
 
   if ($isModified || $refresh) {
@@ -1187,7 +1176,6 @@ sub getDB {
     my $baseWeb = $Foswiki::Plugins::SESSION->{webName};
     my $baseTopic = $Foswiki::Plugins::SESSION->{topicName};
     $db->load($refresh, $baseWeb, $baseTopic);
-    $webDBIsModified{$webKey} = 0;
   }
 
   return $db;
@@ -1213,7 +1201,6 @@ sub unloadDB {
   return unless $web;
 
   delete $webDB{$web};
-  delete $webDBIsModified{$web};
   delete $webKeys{$web};
 }
 
