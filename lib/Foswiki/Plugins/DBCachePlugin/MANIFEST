@@ -1,5 +1,6 @@
 data/System/DBCachePlugin.txt 0644
 lib/Foswiki/Plugins/DBCachePlugin/Config.spec 0644
+lib/Foswiki/Plugins/DBCachePlugin/DEPENDENCIES 0644
 lib/Foswiki/Plugins/DBCachePlugin/Core.pm 0644
 lib/Foswiki/Plugins/DBCachePlugin.pm 0644
 lib/Foswiki/Plugins/DBCachePlugin/WebDB.pm 0644

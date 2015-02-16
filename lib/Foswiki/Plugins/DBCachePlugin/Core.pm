@@ -1,6 +1,6 @@
 # Plugin for Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# Copyright (C) 2005-2014 Michael Daum http://michaeldaumconsulting.com
+# Copyright (C) 2005-2015 Michael Daum http://michaeldaumconsulting.com
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -356,15 +356,22 @@ sub handleDBQUERY {
       $line =~ s/\$pattern\((.*?)\)/extractPattern($topicObj, $1)/ge;
       $line =~ s/\$formfield\((.*?)\)/
         my $temp = $theDB->getFormField($topicName, $1);
-	$temp =~ s#\)#${TranslationToken}#g;
-	$temp/geo;
+        $temp =~ s#\)#${TranslationToken}#g;
+      $temp/geo;
       $line =~ s/\$expand\((.*?)\)/
         my $temp = $1;
         $temp = $theDB->expandPath($topicObj, $temp);
-	$temp =~ s#\)#${TranslationToken}#g;
-	$temp/geo;
+        $temp =~ s#\)#${TranslationToken}#g;
+      $temp/geo;
+      $line =~ s/\$html\((.*?)\)/
+        my $temp = $1;
+        $temp = $theDB->expandPath($topicObj, $temp);
+        $temp =~ s#\)#${TranslationToken}#g;
+        $temp = Foswiki::Func::expandCommonVariables($temp, $topicName, $thisWeb);
+        $temp = Foswiki::Func::renderText($temp, $thisWeb, $topicName);
+      $temp/geo;
       $line =~ s/\$d2n\((.*?)\)/parseTime($theDB->expandPath($topicObj, $1))/ge;
-      $line =~ s/\$formatTime\((.*?)(?:,\s*'([^']*?)')?\)/formatTime($theDB->expandPath($topicObj, $1), $2)/ge; # single quoted
+      $line =~ s/\$formatTime\((.*?)(?:,\s*'([^']*?)')?\)/formatTime($theDB->expandPath($topicObj, $1), $2)/ge;    # single quoted
       $line =~ s/\$topic/$topicName/g;
       $line =~ s/\$web/$thisWeb/g;
       $line =~ s/\$index/$index/g;

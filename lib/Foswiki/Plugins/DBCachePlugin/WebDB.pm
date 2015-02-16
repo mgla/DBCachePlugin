@@ -342,7 +342,7 @@ sub dbQuery {
       if (
         $isAdmin 
         || (!$topicHasPerms && $webViewPermission)
-        || $this->checkAccessPermission('VIEW', $wikiName, $topicObj) #Foswiki::Func::checkAccessPermission('VIEW', $wikiName, undef, $topicName, $this->{web}))
+        || ($topicHasPerms && $this->checkAccessPermission('VIEW', $wikiName, $topicObj)) #Foswiki::Func::checkAccessPermission('VIEW', $wikiName, undef, $topicName, $this->{web}))
         ) 
       {
 

@@ -1,4 +1,4 @@
-%META:TOPICINFO{author="ProjectContributor" comment="" date="1417091810" format="1.1" version="1"}%
+%META:TOPICINFO{author="ProjectContributor" comment="" date="1424086008" format="1.1" version="1"}%
 ---+!! <nop>%TOPIC%
 %TOC%
 
@@ -121,6 +121,7 @@ Following variables are expanded in format strings:
      (see [[%SYSTEMWEB%.Macros#DISPLAYTIME_format_formatted_dis][Macros]] documentation).
    * $expand(&lt;formfield-accessor>): return the formfield pointed to by the 
       &lt;formfield-accessor>
+   * $html(&lt;formfield-accessor>): same as =$expand()= but expands macros and TML markup
    * $d2n(&lt;formfield-accessor>): converts a date formfield's value to epoch seconds
    * $rss(...): encode entities so that the text can be included in an rss feed
    * $encode(...): encode entities so that the text can be included in HTML input form elements
@@ -416,11 +417,12 @@ automatically from there on.
    * Set SHORTDESCRIPTION = Lightweight frontend to the <nop>DBCacheContrib
 -->
 |  Author: | Michael Daum |
-|  Copyright &copy;: | 2005-2014, Michael Daum http://michaeldaumconsulting.com |
+|  Copyright &copy;: | 2005-2015, Michael Daum http://michaeldaumconsulting.com |
 |  License: | GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]]) |
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  20 Jan 2015: | added =$html()= |
 |  27 Nov 2014: | fixed security of rest handlers and DBDUMP macro |
 |  28 May 2014: | implemented new ACL style compatible with Foswiki >= 1.2 |
 |  04 Apr 2014: | flag rest handlers that don't require authentication |
