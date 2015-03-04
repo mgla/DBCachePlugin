@@ -976,7 +976,7 @@ sub dbDump {
     return inlineError("DBCachePlugin: $web.$topic not found");
   }
   my $result = "\n<noautolink>\n";
-  $result .= "---++ [[$web.$topic]]\n";
+  $result .= "<h2 > [[$web.$topic]]</h2>\n";
   $result .= _dbDumpMap($topicObj);
   return $result . "\n</noautolink>\n";
 }

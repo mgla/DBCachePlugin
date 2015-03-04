@@ -1,4 +1,4 @@
-%META:TOPICINFO{author="ProjectContributor" comment="" date="1424086008" format="1.1" version="1"}%
+%META:TOPICINFO{author="ProjectContributor" comment="" date="1425456531" format="1.1" version="1"}%
 ---+!! <nop>%TOPIC%
 %TOC%
 
@@ -422,6 +422,7 @@ automatically from there on.
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  04 Mar 2015: | fixing interaction between DBDUMP generating a heading and Foswiki:Extensions/EditChapterPlugin |
 |  20 Jan 2015: | added =$html()= |
 |  27 Nov 2014: | fixed security of rest handlers and DBDUMP macro |
 |  28 May 2014: | implemented new ACL style compatible with Foswiki >= 1.2 |

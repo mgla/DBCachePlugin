@@ -25,8 +25,8 @@ use Foswiki::Plugins();
 #Monitor::MonitorMethod('Foswiki::Contrib::DBCachePlugin::Core');
 #Monitor::MonitorMethod('Foswiki::Contrib::DBCachePlugin::WebDB');
 
-our $VERSION = '6.10';
-our $RELEASE = '6.10';
+our $VERSION = '6.11';
+our $RELEASE = '04 Mar 2015';
 our $NO_PREFS_IN_TOPIC = 1;
 our $SHORTDESCRIPTION = 'Lightweighted frontend to the DBCacheContrib';
 
