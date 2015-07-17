@@ -1,4 +1,4 @@
-%META:TOPICINFO{author="ProjectContributor" comment="" date="1425456531" format="1.1" version="1"}%
+%META:TOPICINFO{author="ProjectContributor" comment="" date="1437149467" format="1.1" version="1"}%
 ---+!! <nop>%TOPIC%
 %TOC%
 
@@ -96,7 +96,7 @@ tool or (b) as a tool to extract properties of (a set of) known topics.
   defaults to "$n"; the special separator "none" disables separation |
 | =include="..."= | pattern each found topic name must match to be considered a hit |
 | =exclude="..."= | pattern each found topic name must not match to be considered a hit |
-| =sort="..."= | specifies the sorting of hits; this can be a comma separted list of attributes to specify more complicated sortings; defaults to "name" |
+| =sort="..."= | specifies the sorting of hits; this can be a comma separted list of attributes to specify more complicated sortings; special value "random"; defaults to "name" |
 | =reverse="..."= | specify if hits should be sorted in reverse order; defaults to "off" |
 | =limit="..."= | maximum number of topics to include in the hit set |
 | =skip="..."= | number of topics to skip while constructing the hit set; defaults to "0" |
@@ -422,6 +422,7 @@ automatically from there on.
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  25 May 2015: | added =sections= to database, a list of known named sections |
 |  04 Mar 2015: | fixing interaction between DBDUMP generating a heading and Foswiki:Extensions/EditChapterPlugin |
 |  20 Jan 2015: | added =$html()= |
 |  27 Nov 2014: | fixed security of rest handlers and DBDUMP macro |

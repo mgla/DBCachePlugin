@@ -1,3 +1,4 @@
-Foswiki::Contrib::DBCacheContrib,>=3.00,perl,Required. 
-Time::ParseDate,>=2003.0211,cpan,Required. 
-Storable,>=2.07,cpan,Required.
+Foswiki::Contrib::DBCacheContrib,>=4.00,perl,Required
+Time::ParseDate,>=2003.0211,cpan,Required
+Storable,>=2.07,cpan,Required
+Sereal,>=3.00,cpan,Optional

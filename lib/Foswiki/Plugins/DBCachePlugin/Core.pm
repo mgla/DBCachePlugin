@@ -40,6 +40,7 @@ use Foswiki::Sandbox ();
 use Foswiki::Time ();
 use Foswiki::Func ();
 use Cwd;
+use Encode();
 
 ###############################################################################
 sub writeDebug {
@@ -214,6 +215,7 @@ sub handleTOPICTITLE {
   my $thisWeb = $params->{web} || $baseWeb;
   my $theEncoding = $params->{encode} || '';
   my $theDefault = $params->{default};
+  my $theRev = $params->{rev};
   my $theHideAutoInc = Foswiki::Func::isTrue($params->{hideautoinc}, 0);
 
   $thisTopic =~ s/^\s+//go;
@@ -222,7 +224,7 @@ sub handleTOPICTITLE {
   ($thisWeb, $thisTopic) =
     Foswiki::Func::normalizeWebTopicName($thisWeb, $thisTopic);
 
-  my $topicTitle = getTopicTitle($thisWeb, $thisTopic);
+  my $topicTitle = getTopicTitle($thisWeb, $thisTopic, $theRev);
 
   if ($topicTitle eq $thisTopic && defined($theDefault)) {
     $topicTitle = $theDefault;
@@ -239,31 +241,60 @@ sub handleTOPICTITLE {
 
 ###############################################################################
 sub getTopicTitle {
-  my ($theWeb, $theTopic) = @_;
+  my ($web, $topic, $rev) = @_;
 
-  ($theWeb, $theTopic) = Foswiki::Func::normalizeWebTopicName($theWeb, $theTopic);
+  ($web, $topic) = Foswiki::Func::normalizeWebTopicName($web, $topic);
 
-  my $db = getDB($theWeb);
-  return $theTopic unless $db;
+  my $topicTitle = $topic;
 
-  my $topicObj = $db->fastget($theTopic);
-  return $theTopic unless $topicObj;
+  if ($rev) {
+    my ($meta) = Foswiki::Func::readTopic($web, $topic, $rev);
 
-  if ($Foswiki::cfg{SecureTopicTitles}) {
-    my $wikiName = Foswiki::Func::getWikiName();
-    return $theTopic
-      unless Foswiki::Func::checkAccessPermission('VIEW', $wikiName, undef, $theTopic, $theWeb);
+    # read the formfield value
+    $topicTitle = $meta->get('FIELD', 'TopicTitle');
+    $topicTitle = $topicTitle->{value} if $topicTitle;
+
+    # read the topic preference
+    unless ($topicTitle) {
+      $topicTitle = $meta->get('PREFERENCE', 'TOPICTITLE');
+      $topicTitle = $topicTitle->{value} if $topicTitle;
+    }
+
+    # read the preference
+    unless ($topicTitle)  {
+      Foswiki::Func::pushTopicContext($web, $topic);
+      $topicTitle = Foswiki::Func::getPreferencesValue('TOPICTITLE');
+      Foswiki::Func::popTopicContext();
+    }
+
+  } else {
+    my $db = getDB($web);
+    return $topic unless $db;
+
+    my $topicObj = $db->fastget($topic);
+    return $topic unless $topicObj;
+
+    if ($Foswiki::cfg{SecureTopicTitles}) {
+      my $wikiName = Foswiki::Func::getWikiName();
+      return $topic
+        unless Foswiki::Func::checkAccessPermission('VIEW', $wikiName, undef, $topic, $web);
+    }
+
+    $topicTitle = $topicObj->fastget('topictitle');
   }
 
-  my $topicTitle = $topicObj->fastget('topictitle');
-  return $topicTitle if $topicTitle;
+  # default to topic name
+  $topicTitle = $topic unless $topicTitle;
 
-  if ($theTopic eq $Foswiki::cfg{HomeTopicName}) {
-    $theWeb =~ s/^.*[\.\/]//;
-    return $theWeb;
+  $topicTitle =~ s/\s*$//;
+  $topicTitle =~ s/^\s*//;
+
+  if ($topicTitle eq $Foswiki::cfg{HomeTopicName}) {
+    $topicTitle = $web;
+    $topicTitle =~ s/^.*[\.\/]//;
   }
 
-  return $theTopic;
+  return $topicTitle;
 }
 
 ###############################################################################
@@ -886,7 +917,7 @@ sub _dbDump {
     } 
   } 
 
-  return "<verbatim style='margin:0'>\n$obj\n</verbatim>";
+  return "<verbatim>\n$obj\n</verbatim>";
 }
 
 ###############################################################################
@@ -907,10 +938,10 @@ sub _dbDumpList {
 sub _dbDumpHash {
   my $hash = shift;
 
-  my $result = "<table class='foswikiTable' style='margin:0;font-size:1em'>\n";
+  my $result = "<table class='foswikiTable'>\n";
 
   foreach my $key (sort keys %$hash) {
-    $result .= "<tr><th valign='top'>$key</th><td>\n";
+    $result .= "<tr><th>$key</th><td>\n";
     $result .= _dbDump($hash->{$key});
     $result .= "</td></tr>\n";
   }
@@ -922,11 +953,11 @@ sub _dbDumpHash {
 sub _dbDumpArray {
   my $array = shift;
 
-  my $result = "<table class='foswikiTable' style='margin:0;font-size:1em'>\n";
+  my $result = "<table class='foswikiTable'\n";
 
   my $index = 0;
   foreach my $obj (sort $array->getValues()) {
-    $result .= "<tr><th valign='top'>";
+    $result .= "<tr><th>";
     if (UNIVERSAL::can($obj, "fastget")) {
       $result .= $obj->fastget('name');
     } else {
@@ -945,12 +976,12 @@ sub _dbDumpArray {
 sub _dbDumpMap {
   my $map = shift;
 
-  my $result = "<table class='foswikiTable' style='margin:0;font-size:1em'>\n";
+  my $result = "<table class='foswikiTable'>\n";
 
   my @keys = sort {lc($a) cmp lc($b)} $map->getKeys();
 
   foreach my $key (@keys) {
-    $result .= "<tr><th valign='top'>$key</th><td>\n";
+    $result .= "<tr><th>$key</th><td>\n";
     $result .= _dbDump($map->fastget($key));
     $result .= "</td></tr>\n";
   }
@@ -975,10 +1006,10 @@ sub dbDump {
   unless ($topicObj) {
     return inlineError("DBCachePlugin: $web.$topic not found");
   }
-  my $result = "\n<noautolink>\n";
+  my $result = "\n<noautolink><div class='foswikiDBDump'>\n";
   $result .= "<h2 > [[$web.$topic]]</h2>\n";
   $result .= _dbDumpMap($topicObj);
-  return $result . "\n</noautolink>\n";
+  return $result . "\n</div></noautolink>\n";
 }
 
 ###############################################################################
@@ -1368,6 +1399,7 @@ sub quoteEncode {
 sub urlEncode {
   my $text = shift;
 
+  $text = Encode::encode_utf8($text) if $Foswiki::UNICODE;
   $text =~ s/([^0-9a-zA-Z-_.:~!*'\/%])/'%'.sprintf('%02x',ord($1))/ge;
 
   return $text;

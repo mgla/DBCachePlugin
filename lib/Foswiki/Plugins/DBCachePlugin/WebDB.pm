@@ -120,12 +120,17 @@ sub onReload {
     # CAUTION: %SECTION will be deleted in the near future.
     # so please convert all %SECTION to %STARTSECTION
 
-    while ($text =~ s/%(?:START)?SECTION{(.*?)}%(.*?)%ENDSECTION{[^}]*?"(.*?)"}%//s) {
+    my $archivist = $this->getArchivist();
+
+    my @sections = ();
+    while ($text =~ s/%(?:START)?SECTION{(.*?)}%(.*?)%(?:STOP|END)SECTION{[^}]*?"(.*?)"}%//s) {
       my $attrs = new Foswiki::Attrs($1);
       my $name = $attrs->{name} || $attrs->{_DEFAULT} || '';
       my $sectionText = $2;
+      push @sections, $name;
       $topic->set("_section$name", $sectionText);
     }
+    $topic->set('_sections', join(", ", @sections));
 
     # get topic title
 
@@ -187,7 +192,6 @@ sub onReload {
     my @comments = $meta->find('COMMENT');
     my $commentDate = 0;
     my $cmts;
-    my $archivist = $this->getArchivist();
     foreach my $comment (@comments) {
       my $cmt = $archivist->newMap(initial => $comment) ;
       my $cmtDate = $comment->{date};
@@ -357,6 +361,9 @@ sub dbQuery {
         } elsif ($theSort =~ /^(modified|info\.date)/) {
           my $info = $topicObj->fastget('info');
           $sorting{$topicName} = $info ? $info->fastget('date') : 0;
+        } elsif ($theSort =~ /^rand(om)?$/) {
+           $doNumericalSort = 1; 
+           $sorting{$topicName} = rand();
         } elsif ($theSort ne 'off') {
           my $format = $theSort;
           $format =~ s/\$web/$this->{web}/g;
