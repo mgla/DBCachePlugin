@@ -1,6 +1,6 @@
 # Plugin for Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# Copyright (C) 2005-2014 Michael Daum http://michaeldaumconsulting.com
+# Copyright (C) 2005-2015 Michael Daum http://michaeldaumconsulting.com
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -23,9 +23,9 @@ use warnings;
 use Foswiki::Contrib::DBCacheContrib ();
 use Foswiki::Contrib::DBCacheContrib::Search ();
 use Foswiki::Plugins::DBCachePlugin ();
+use Foswiki::Plugins::DBCachePlugin::Hits ();
 use Foswiki::Attrs ();
 use Foswiki::Time ();
-use Error qw(:try);
 
 use constant TRACE => 0; # toggle me
 
@@ -123,7 +123,7 @@ sub onReload {
     my $archivist = $this->getArchivist();
 
     my @sections = ();
-    while ($text =~ s/%(?:START)?SECTION{(.*?)}%(.*?)%(?:STOP|END)SECTION{[^}]*?"(.*?)"}%//s) {
+    while ($text =~ s/%(?:START)?SECTION\{(.*?)\}%(.*?)%(?:STOP|END)SECTION\{[^}]*?"(.*?)"\}%//s) {
       my $attrs = new Foswiki::Attrs($1);
       my $name = $attrs->{name} || $attrs->{_DEFAULT} || '';
       my $sectionText = $2;
@@ -249,9 +249,10 @@ sub getNeighbourTopics {
 
   unless ($prevTopic && $nextTopic) {
 
-    my ($resultList) = $this->dbQuery($theSearch, undef, $theOrder, $theReverse);
+    my $hits = $this->dbQuery($theSearch, undef, $theOrder, $theReverse);
     my $state = 0;
-    foreach my $t (@$resultList) {
+    while (my $obj = $hits->next) {
+      my $t = $obj->fastget("topic");
       if ($state == 1) {
         $state = 2;
         $nextTopic = $t;
@@ -279,15 +280,7 @@ sub getNeighbourTopics {
 
 ###############################################################################
 sub dbQuery {
-  my ($this, $theSearch, $theTopics, $theSort, $theReverse, $theInclude, $theExclude) = @_;
-
-  # TODO return empty result on an emtpy topics list
-
-  $theSort ||= '';
-  $theReverse ||= '';
-  $theSearch ||= '';
-
-  #print STDERR "DEBUG: called dbQuery(theSearch=$theSearch, theTopics=$theTopics, theSort=$theSort, theReverse=$theReverse) in $this->{web}\n";
+  my ($this, $theSearch, $theTopics, $theSort, $theReverse, $theInclude, $theExclude, $hits) = @_;
 
   # get max hit set
   my @topicNames;
@@ -301,25 +294,19 @@ sub dbQuery {
 
   # parse & fetch
   my $wikiName = Foswiki::Func::getWikiName();
-  my %hits = ();
-  my %sorting = ();
   my $search;
   if ($theSearch) {
-    try {
-      $search = new Foswiki::Contrib::DBCacheContrib::Search($theSearch);
-    }
-    catch Error::Simple with {
-      my $error = shift;
-    };
-    unless ($search) {
-      return (undef, undef, "ERROR: can't parse query \"$theSearch\"");
-    }
+    $search = new Foswiki::Contrib::DBCacheContrib::Search($theSearch);
   }
 
   my $isAdmin = Foswiki::Func::isAnAdmin();
   my $webViewPermission = $isAdmin || Foswiki::Func::checkAccessPermission('VIEW', $wikiName, undef, undef, $this->{web});
 
-  my $doNumericalSort = 1;
+  $hits ||= Foswiki::Plugins::DBCachePlugin::Hits->new(
+    sorting => $theSort,
+    reverse => $theReverse,
+  );
+
   foreach my $topicName (@topicNames) {
     my $topicObj = $this->fastget($topicName);
     next unless $topicObj;    # never
@@ -349,59 +336,12 @@ sub dbQuery {
         || ($topicHasPerms && $this->checkAccessPermission('VIEW', $wikiName, $topicObj)) #Foswiki::Func::checkAccessPermission('VIEW', $wikiName, undef, $topicName, $this->{web}))
         ) 
       {
-
-        $hits{$topicName} = $topicObj;
-
-        # pre-fetch the sorting key - thus we only do it N times
-        if ($theSort =~ /^(on|name)$/) {
-          $sorting{$topicName} = $topicName;
-          $doNumericalSort = 0;
-        } elsif ($theSort =~ /^created/) {
-          $sorting{$topicName} = $topicObj->fastget('createdate');
-        } elsif ($theSort =~ /^(modified|info\.date)/) {
-          my $info = $topicObj->fastget('info');
-          $sorting{$topicName} = $info ? $info->fastget('date') : 0;
-        } elsif ($theSort =~ /^rand(om)?$/) {
-           $doNumericalSort = 1; 
-           $sorting{$topicName} = rand();
-        } elsif ($theSort ne 'off') {
-          my $format = $theSort;
-          $format =~ s/\$web/$this->{web}/g;
-          $format =~ s/\$topic/$topicName/g;
-          $format =~ s/\$perce?nt/\%/go;
-          $format =~ s/\$nop//go;
-          $format =~ s/\$n/\n/go;
-          $format =~ s/\$dollar/\$/go;
-          my @sorting = ();
-          foreach my $item (split(/\s*,\s*/, $format)) {
-            push @sorting, $item;
-          }
-          $sorting{$topicName} = $this->expandPath($topicObj, join(" and ", @sorting));
-          $doNumericalSort = 0 
-            if ($doNumericalSort == 1) && $sorting{$topicName} && !($sorting{$topicName} =~ /^[+-]?\d+(\.\d+)?$/);
-        }
-        #print STDERR "topicName=$topicName - sorting='$sorting{$topicName}' - doNumericalSort=$doNumericalSort\n";
+        $hits->add($topicName, $topicObj);
       }
     }
   }
 
-  @topicNames = keys %hits;
-  if (@topicNames > 1) {
-    if ($theSort ne 'off') {
-      if ($doNumericalSort == 1) {
-        @topicNames =
-          sort { ($sorting{$a}||0) <=> ($sorting{$b}||0) } @topicNames;
-      } else {
-        @topicNames =
-          sort { $sorting{$a} cmp $sorting{$b} } @topicNames;
-      }
-    }
-    @topicNames = reverse @topicNames if $theReverse eq 'on';
-  }
-
-  #print STDERR "DEBUG: result topicNames=@topicNames\n";
-
-  return (\@topicNames, \%hits, undef);
+  return $hits;
 }
 
 ###############################################################################

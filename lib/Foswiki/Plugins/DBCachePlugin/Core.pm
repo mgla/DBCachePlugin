@@ -41,6 +41,7 @@ use Foswiki::Time ();
 use Foswiki::Func ();
 use Cwd;
 use Encode();
+use Error qw(:try);
 
 ###############################################################################
 sub writeDebug {
@@ -309,6 +310,7 @@ sub handleDBQUERY {
   my $theSearch = $params->{_DEFAULT} || $params->{search};
   my $thisTopic = $params->{topic} || '';
   my $thisWeb = $params->{web} || $baseWeb;
+  my $theWebs = $params->{webs};
   my $theTopics = $params->{topics} || '';
   my $theFormat = $params->{format};
   my $theHeader = $params->{header} || '';
@@ -329,7 +331,11 @@ sub handleDBQUERY {
   $theSep = '$n' unless defined $theSep;
   $theSep = '' if $theSep eq 'none';
 
-  # get web and topic(s)
+  # get the regexes
+  $theInclude = join("|", split(/\s*,\s*/, $theInclude)) if $theInclude;
+  $theExclude = join("|", split(/\s*,\s*/, $theExclude)) if $theExclude;
+
+  # get topic(s)
   my @topicNames = ();
   if ($thisTopic) {
     ($thisWeb, $thisTopic) = Foswiki::Func::normalizeWebTopicName($thisWeb, $thisTopic);
@@ -341,7 +347,20 @@ sub handleDBQUERY {
     }
   }
 
-  # normalize 
+  # get webs
+  my @webs;
+  if ($theWebs) {
+    if ($theWebs eq 'all') {
+      @webs = Foswiki::Func::getListOfWebs();
+    } else {
+      my $webPattern = join("|", split(/\s*,\s*/, $theWebs));
+      @webs = grep {/$webPattern/} Foswiki::Func::getListOfWebs();
+    }
+  } else {
+    push @webs, $thisWeb;
+  }
+
+  # get the skip
   unless ($theSkip =~ /^[\d]+$/) {
     $theSkip = expandVariables($theSkip, $thisWeb, $thisTopic);
     $theSkip = expandFormatTokens($theSkip);
@@ -351,38 +370,52 @@ sub handleDBQUERY {
   $theSkip = 0 if $theSkip eq '';
   $theSkip = 0 if $theSkip < 0;
 
-  my $theDB = getDB($thisWeb);
-  return '' unless $theDB;
-
-  # flag the current web we evaluate this query in, used by web-specific operators
-  $dbQueryCurrentWeb = $thisWeb;
-
-  my ($topicNames, $hits, $msg) = $theDB->dbQuery($theSearch, 
-    \@topicNames, $theSort, $theReverse, $theInclude, $theExclude);
-
-  return inlineError($msg) if $msg;
-
-  my $count = scalar(@$topicNames);
-  return '' if ($count <= $theSkip) && $theHideNull;
-
+  # get the limit
   unless ($theLimit =~ /^[\d]+$/) {
     $theLimit = expandVariables($theLimit, $thisWeb, $thisTopic);
     $theLimit = expandFormatTokens($theLimit);
     $theLimit = Foswiki::Func::expandCommonVariables($theLimit, $thisTopic, $thisWeb);
   }
   $theLimit =~ s/[^\d]//go;
-  $theLimit = scalar(@$topicNames) if $theLimit eq '';
-  $theLimit += $theSkip;
+
+  # get webs
+  my $hits;
+  my $error;
+  try {
+    foreach my $web (@webs) {
+
+      my $theDB = getDB($web);
+      next unless $theDB;
+
+      # flag the current web we evaluate this query in, used by web-specific operators
+      $dbQueryCurrentWeb = $web;
+
+      # collect hit set
+      $hits = $theDB->dbQuery($theSearch, \@topicNames, $theSort, $theReverse, $theInclude, $theExclude, $hits);
+    }
+  } catch Error::Simple with {
+    $error = shift->stringify();
+  };
+
+  return inlineError($error) if $error;
+  return "" if $theHideNull && (!$hits || $hits->count <= $theSkip);
 
   # format
   my @result = ();
-  if ($theFormat && $theLimit) {
-    my $index = 0;
-    foreach my $topicName (@$topicNames) {
+  if ($theFormat && $hits) {
+    my $index = $hits->skip($theSkip);
+    while (my $topicObj = $hits->next) {
       #writeDebug("topicName=$topicName");
       $index++;
-      next if $index <= $theSkip;
-      my $topicObj = $hits->{$topicName};
+
+      my $topicName = $topicObj->fastget("topic");
+      my $web = $topicObj->fastget("web");
+      my $theDB = getDB($web);
+      unless ($theWeb) {
+        print STDERR "ERROR: no such web $theWeb in DBQUERY\n";
+        next;
+      }
+
       my $line = $theFormat;
       $line =~ s/\$pattern\((.*?)\)/extractPattern($topicObj, $1)/ge;
       $line =~ s/\$formfield\((.*?)\)/
@@ -398,29 +431,29 @@ sub handleDBQUERY {
         my $temp = $1;
         $temp = $theDB->expandPath($topicObj, $temp);
         $temp =~ s#\)#${TranslationToken}#g;
-        $temp = Foswiki::Func::expandCommonVariables($temp, $topicName, $thisWeb);
-        $temp = Foswiki::Func::renderText($temp, $thisWeb, $topicName);
+        $temp = Foswiki::Func::expandCommonVariables($temp, $topicName, $web);
+        $temp = Foswiki::Func::renderText($temp, $web, $topicName);
       $temp/geo;
       $line =~ s/\$d2n\((.*?)\)/parseTime($theDB->expandPath($topicObj, $1))/ge;
       $line =~ s/\$formatTime\((.*?)(?:,\s*'([^']*?)')?\)/formatTime($theDB->expandPath($topicObj, $1), $2)/ge;    # single quoted
       $line =~ s/\$topic/$topicName/g;
-      $line =~ s/\$web/$thisWeb/g;
+      $line =~ s/\$web/$web/g;
       $line =~ s/\$index/$index/g;
-      $line =~ s/\$flatten\((.*?)\)/flatten($1, $thisWeb, $thisTopic)/ges;
-      $line =~ s/\$rss\((.*?)\)/rss($1, $thisWeb, $thisTopic)/ges;
+      $line =~ s/\$flatten\((.*?)\)/flatten($1, $web, $thisTopic)/ges;
+      $line =~ s/\$rss\((.*?)\)/rss($1, $web, $thisTopic)/ges;
 
       $line =~ s/${TranslationToken}/)/go;
       push @result, $line;
 
-      $Foswiki::Plugins::DBCachePlugin::addDependency->($thisWeb, $topicName);
+      $Foswiki::Plugins::DBCachePlugin::addDependency->($web, $topicName);
 
-      last if $index == $theLimit;
+      last if $index == ($theLimit||0) + $theSkip;
     }
   }
 
   my $text = $theHeader.join($theSep, @result).$theFooter;
 
-  $text = expandVariables($text, $thisWeb, $thisTopic, count=>$count, web=>$thisWeb);
+  $text = expandVariables($text, $thisWeb, $thisTopic, count=>($hits?$hits->count:0), web=>$thisWeb);
   $text = expandFormatTokens($text);
 
   fixInclude($session, $thisWeb, $text) if $theRemote;
@@ -435,13 +468,13 @@ sub handleDBQUERY {
 sub findTopicMethod {
   my ($session, $theWeb, $theTopic, $theObject) = @_;
 
-  #writeDebug("called findTopicMethod($theWeb, $theTopic, $theObject)");
+  writeDebug("called findTopicMethod($theWeb, $theTopic, $theObject)");
 
   return undef unless $theObject;
 
   my ($thisWeb, $thisObject) = Foswiki::Func::normalizeWebTopicName($theWeb, $theObject);
 
-  #writeDebug("object web=$thisWeb, topic=$thisObject");
+  writeDebug("object web=$thisWeb, topic=$thisObject");
 
   # get form object
   my $baseDB = getDB($thisWeb);
@@ -465,56 +498,66 @@ sub findTopicMethod {
   my $formObj = $topicObj->fastget($form);
   return undef unless $formObj;
 
+  $form = $formObj->fastget("name");
+  my ($formWeb, $formTopic) = Foswiki::Func::normalizeWebTopicName($thisWeb, $form);
+  writeDebug("formWeb=$formWeb, formTopic=$formTopic");
+
+  my $formDB = getDB($formWeb);
+  unless ($formDB) {
+    print STDERR "WARNING: DBCachePlugin can't get cache for web '$formWeb'\n";
+    return;
+  }
+
   #writeDebug("4");
 
   # get type information on this object
   my $topicTypes = $formObj->fastget('TopicType');
   return undef unless $topicTypes;
 
-  #writeDebug("topicTypes=$topicTypes");
+  writeDebug("topicTypes=$topicTypes");
 
   foreach my $topicType (split(/\s*,\s*/, $topicTypes)) {
     $topicType =~ s/^\s+//o;
     $topicType =~ s/\s+$//o;
 
-    #writeDebug("1");
+    writeDebug(".... topicType=$topicType");
 
-    # if not found in the current web, try to 
+    writeDebug("1");
+
     # find it in the web where this type is implemented
-    my $topicTypeObj = $baseDB->fastget($topicType);
+    my $topicTypeObj = $formDB->fastget($topicType);
     next unless $topicTypeObj;
 
-    #writeDebug("2");
+    writeDebug("2");
 
     $form = $topicTypeObj->fastget('form');
     next unless $form;
 
-    #writeDebug("3");
+    writeDebug("3");
 
     $formObj = $topicTypeObj->fastget($form);
     next unless $formObj;
 
-    #writeDebug("4");
+    writeDebug("4");
 
     my $targetWeb;
     my $target = $formObj->fastget('Target');
     if ($target) {
       $targetWeb = $1 if $target =~ /^(.*)[.\/](.*?)$/;
     } 
-    $targetWeb = $thisWeb unless defined $targetWeb;
-
+    $targetWeb = $formWeb unless defined $targetWeb;
 
     #writeDebug("5");
 
     my $theMethod = $topicType.$theTopic;
     my $targetDB = getDB($targetWeb);
-    #writeDebug("checking $targetWeb.$theMethod");
+    writeDebug("... checking $targetWeb.$theMethod");
     return ($targetWeb, $theMethod) if $targetDB && $targetDB->fastget($theMethod);
 
     #writeDebug("6");
   }
 
-  #writeDebug("5");
+  writeDebug("... nothing found");
   return;
 }
 
@@ -706,6 +749,10 @@ sub handleDBSTATS {
   $theFormat = '   * $key: $count' unless defined $theFormat;
   $theSep = $params->{sep} unless defined $theSep;
   $theSep = '$n' unless defined $theSep;
+
+  # get the regexes
+  $theInclude = join("|", split(/\s*,\s*/, $theInclude)) if $theInclude;
+  $theExclude = join("|", split(/\s*,\s*/, $theExclude)) if $theExclude;
 
   #writeDebug("theSearch=$theSearch");
   #writeDebug("thisWeb=$thisWeb");
@@ -953,7 +1000,7 @@ sub _dbDumpHash {
 sub _dbDumpArray {
   my $array = shift;
 
-  my $result = "<table class='foswikiTable'\n";
+  my $result = "<table class='foswikiTable'>\n";
 
   my $index = 0;
   foreach my $obj (sort $array->getValues()) {
@@ -1053,12 +1100,24 @@ sub handleDBRECURSE {
   $params->{singlefooter} = '' if $params->{singlefooter} eq 'none';
   $params->{separator} = '' if $params->{separator} eq 'none';
 
+  $params->{include} = join("|", split(/\s*,\s*/, $params->{include})) if $params->{include};
+  $params->{exclude} = join("|", split(/\s*,\s*/, $params->{exclude})) if $params->{exclude};
+
   # query topics
   my $theDB = getDB($thisWeb);
   return inlineError("ERROR: DBRECURSE can't find web '$thisWeb'") unless $theDB;
 
   $params->{_count} = 0;
-  my $result = formatRecursive($theDB, $thisWeb, $thisTopic, $params);
+  my $result;
+  my $error;
+
+  try {
+    $result = formatRecursive($theDB, $thisWeb, $thisTopic, $params);
+  } catch Error::Simple with {
+    $error = shift->stringify();
+  };
+
+  return inlineError($error) if $error;
 
   # render result
   return '' if $params->{hidenull} eq 'on' && $params->{_count} == 0;
@@ -1088,7 +1147,7 @@ sub formatRecursive {
   return if $params->{depth} && $depth >= $params->{depth};
   return if $params->{limit} && $params->{_count} >= $params->{limit};
 
-  #writeDebug("called formatRecursive($theWeb, $theTopic)");
+  writeDebug("called formatRecursive($theWeb, $theTopic)");
   return unless $theTopic;
 
   # search sub topics
@@ -1097,19 +1156,22 @@ sub formatRecursive {
   $queryString =~ s/\$name\b/$theTopic/g;
 
   #writeDebug("queryString=$queryString");
-  my ($topicNames, $hits, $errMsg) = $theDB->dbQuery($queryString, undef, 
+  my $hits = $theDB->dbQuery(
+    $queryString, undef, 
     $params->{sort},
     $params->{reverse},
     $params->{include},
-    $params->{exclude});
-  die $errMsg if $errMsg; # never reach
-
+    $params->{exclude}
+  );
+ 
   # format this round
   my @result = ();
   my $index = 0;
-  my $nrTopics = scalar(@$topicNames);
-  foreach my $topicName (@$topicNames) {
+  my $nrTopics = $hits->count;
+  while (my $topicObj = $hits->next) {
+    my $topicName = $topicObj->fastget("topic");
     next if $topicName eq $theTopic; # cycle, kind of
+
     $params->{_count}++;
     next if $params->{_count} <= $params->{skip};
 
@@ -1127,8 +1189,7 @@ sub formatRecursive {
     $text =~ s/\$indent\((.+?)\)/$1 x $depth/ge;
     $text =~ s/\$indent/'   ' x $depth/ge;
 
-    # from DBQUERY
-    my $topicObj = $hits->{$topicName};
+    # SMELL: copied from DBQUERY
     $text =~ s/\$formfield\((.*?)\)/
       my $temp = $theDB->getFormField($topicName, $1);
       $temp =~ s#\)#${TranslationToken}#g;
@@ -1194,7 +1255,7 @@ sub getDB {
 
   $refresh = $doRefresh unless defined $refresh;
 
-  writeDebug("called getDB($theWeb, ".($refresh||0).")");
+  #writeDebug("called getDB($theWeb, ".($refresh||0).")");
 
   my $webKey = getWebKey($theWeb);
   return unless defined $webKey; # invalid webname
@@ -1228,7 +1289,7 @@ sub newDB {
   $impl =~ s/^\s+//go;
   $impl =~ s/\s+$//go;
 
-  writeDebug("loading new webdb for '$web'");
+  #writeDebug("loading new webdb for '$web'");
   return new $impl($web);
 }
 
@@ -1400,7 +1461,7 @@ sub urlEncode {
   my $text = shift;
 
   $text = Encode::encode_utf8($text) if $Foswiki::UNICODE;
-  $text =~ s/([^0-9a-zA-Z-_.:~!*'\/%])/'%'.sprintf('%02x',ord($1))/ge;
+  $text =~ s/([^0-9a-zA-Z-_.:~!*'\/%])/sprintf('%02x',ord($1))/ge;
 
   return $text;
 }
