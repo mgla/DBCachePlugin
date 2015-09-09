@@ -443,11 +443,15 @@ to generate all caches initially. Then switch on the web server again. The cache
 automatically from there on.
 </div>
 
----++ Info
+---++ Dependencies:
+%$DEPENDENCIES% 
+
 <!-- 
    * Set SHORTDESCRIPTION = Lightweight frontend to the <nop>DBCacheContrib
 -->
-|  Change History: | <!-- versions below in reverse order -->&nbsp; |
+
+---++ Change History
+
 |  09 Sep 2015: | new perl api to register index handlers; \
                   moved indexing meta comments to Foswiki:Extensions/MetaCommentPlugin;\
                   fixed fallback of polymorphic calling semantics of DBCALL{topic->method} |
@@ -580,8 +584,8 @@ automatically from there on.
 |  26 Jan 2006: | fixed internal links in DBCALL; \
                   support for STARTSECTION, old SECTION being deprecated |
 |  24 Nov 2005: | Initial version |
-|  Dependencies: | %$DEPENDENCIES% |
 
+%META:FORM{name="PackageForm"}%
 %META:FIELD{name="Author" title="Author" value="Michael Daum"}%
 %META:FIELD{name="Copyright" title="Copyright" value="2005-2015, Michael Daum http://michaeldaumconsulting.com"}%
 %META:FIELD{name="License" title="License" value="GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]])"}%
