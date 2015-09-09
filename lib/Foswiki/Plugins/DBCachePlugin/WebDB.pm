@@ -80,40 +80,40 @@ sub onReload {
   my ($this, $topics) = @_;
 
   writeDebug("called onReload()");
+  my $topicTitleField = Foswiki::Func::getPreferencesValue("TOPICTITLE_FIELD") || "TopicTitle";
 
-  foreach my $topicName (@$topics) {
-    my $topic = $this->fastget($topicName);
+  foreach my $topic (@$topics) {
+    my $obj = $this->fastget($topic);
 
     # anything we get to see here should be in the dbcache already.
     # however we still check for odd topics that did not make it into the cache
     # for some odd reason
-    unless ($topic) {
-      writeDebug("trying to load topic '$topicName' in web '$this->{web}' but it wasn't found in the cache");
+    unless ($obj) {
+      writeDebug("trying to load topic '$topic' in web '$this->{web}' but it wasn't found in the cache");
       next;
     }
 
     # get meta object
-    my ($meta, $text) = Foswiki::Func::readTopic($this->{web}, $topicName);
+    my ($meta, $text) = Foswiki::Func::readTopic($this->{web}, $topic);
     my $origText = $text;
 
     # SMELL: call getRevisionInfo to make sure the latest revision is loaded
     # for get('TOPICINFO') further down the code
     $meta->getRevisionInfo();
 
-    writeDebug("reloading $topicName");
+    writeDebug("reloading $topic");
 
     # createdate
-    my ($createDate, $createAuthor) = Foswiki::Func::getRevisionInfo($this->{web}, $topicName, 1);
-    $topic->set('createdate', $createDate);
-    $topic->set('createauthor', $createAuthor);
+    my ($createDate, $createAuthor) = Foswiki::Func::getRevisionInfo($this->{web}, $topic, 1);
+    $obj->set('createdate', $createDate);
+    $obj->set('createauthor', $createAuthor);
 
     # get default section
     my $defaultSection = $text;
     $defaultSection =~ s/.*?%STARTINCLUDE%//s;
     $defaultSection =~ s/%STOPINCLUDE%.*//s;
 
-    #applyGlue($defaultSection);
-    $topic->set('_sectiondefault', $defaultSection);
+    $obj->set('_sectiondefault', $defaultSection);
 
     # get named sections
 
@@ -128,23 +128,23 @@ sub onReload {
       my $name = $attrs->{name} || $attrs->{_DEFAULT} || '';
       my $sectionText = $2;
       push @sections, $name;
-      $topic->set("_section$name", $sectionText);
+      $obj->set("_section$name", $sectionText);
     }
-    $topic->set('_sections', join(", ", @sections));
+    $obj->set('_sections', join(", ", @sections));
 
     # get topic title
 
     # 1. get from preferences
-    my $topicTitle = $this->getPreference($topic, 'TOPICTITLE');
+    my $topicTitle = $this->getPreference($obj, 'TOPICTITLE');
 
     # 2. get from form
     unless (defined $topicTitle && $topicTitle ne '') {
-      my $form = $topic->fastget('form');
+      my $form = $obj->fastget('form');
       if ($form) {
 
         #print STDERR "trying form\n";
-        $form = $topic->fastget($form);
-        $topicTitle = $form->fastget('TopicTitle') || '';
+        $form = $obj->fastget($form);
+        $topicTitle = $form->fastget($topicTitleField) || '';
         $topicTitle = urlDecode($topicTitle);
       }
     }
@@ -164,11 +164,11 @@ sub onReload {
     #
     #        # strip some
     #        if (defined $topicTitle) {
-    #          $topicTitle =~ s/\%TOPIC\%/$topicName/g;
+    #          $topicTitle =~ s/\%TOPIC\%/$topic/g;
     #          $topicTitle =~ s/\[\[.*\]\[(.*)\]\]/$1/go;
     #          $topicTitle =~ s/\[\[(.*)\]\]/$1/go;
     #          $topicTitle =~ s/<a[^>]*>(.*)<\/a>/$1/go;
-    #          $topicTitle = Foswiki::Func::expandCommonVariables($topicTitle, $topicName, $this->{web});
+    #          $topicTitle = Foswiki::Func::expandCommonVariables($topicTitle, $topic, $this->{web});
     #        }
     #      }
     #    }
@@ -177,37 +177,25 @@ sub onReload {
     unless ($topicTitle) {
 
       #print STDERR "defaulting to topic name\n";
-      if ($topicName eq 'WebHome') {
+      if ($topic eq 'WebHome') {
         $topicTitle = $this->{web};
         $topicTitle =~ s/^.*[\.\/]//;
       } else {
-        $topicTitle = $topicName;
+        $topicTitle = $topic;
       }
     }
 
     #print STDERR "found topictitle=$topicTitle\n" if $topicTitle;
-    $topic->set('topictitle', $topicTitle);
+    $obj->set('topictitle', $topicTitle);
 
-    # cache comments
-    my @comments = $meta->find('COMMENT');
-    my $commentDate = 0;
-    my $cmts;
-    foreach my $comment (@comments) {
-      my $cmt = $archivist->newMap(initial => $comment) ;
-      my $cmtDate = $comment->{date};
-      if ($cmtDate > $commentDate) {
-        $commentDate = $cmtDate;
-      }
-      $cmts = $topic->get('comments');
-      if (!defined($cmts)) {
-        $cmts = $archivist->newArray();
-        $topic->set('comments', $cmts);
-      }
-      $cmts->add($cmt);
+    # call index topic handlers
+    my %seen;
+    foreach my $sub (@Foswiki::Plugins::DBCachePlugin::knownIndexTopicHandler) {
+      next if $seen{$sub};
+      &$sub($this, $obj, $this->{web}, $topic, $meta, $text);
+      $seen{$sub} = 1;
     }
-    if ($commentDate) {
-      $topic->set('commentdate', $commentDate);
-    }
+
   }
 
   #print STDERR "DEBUG: DBCachePlugin::WebDB - done onReload()\n";

@@ -25,8 +25,8 @@ use Foswiki::Plugins();
 #Monitor::MonitorMethod('Foswiki::Contrib::DBCachePlugin::Core');
 #Monitor::MonitorMethod('Foswiki::Contrib::DBCachePlugin::WebDB');
 
-our $VERSION = '8.00';
-our $RELEASE = '31 Aug 2015';
+our $VERSION = '9.00';
+our $RELEASE = '09 Sep 2015';
 our $NO_PREFS_IN_TOPIC = 1;
 our $SHORTDESCRIPTION = 'Lightweighted frontend to the DBCacheContrib';
 
@@ -34,6 +34,7 @@ our $isInitialized;
 our $addDependency;
 our $isEnabledSaveHandler;
 our $isEnabledRenameHandler;
+our @knownIndexTopicHandler = ();
 
 ###############################################################################
 # plugin initializer
@@ -119,6 +120,7 @@ sub initPlugin {
 sub finishPlugin {
 
   my $session = $Foswiki::Plugins::SESSION;
+  @knownIndexTopicHandler = ();
   delete $session->{dbcalls};
 }
 
@@ -267,6 +269,10 @@ sub unloadDB {
 sub getTopicTitle {
   initCore();
   return Foswiki::Plugins::DBCachePlugin::Core::getTopicTitle(@_);
+}
+
+sub registerIndexTopicHandler {
+  push @knownIndexTopicHandler, shift;
 }
 
 ###############################################################################

@@ -251,8 +251,10 @@ sub getTopicTitle {
   if ($rev) {
     my ($meta) = Foswiki::Func::readTopic($web, $topic, $rev);
 
+    my $topicTitleField = Foswiki::Func::getPreferencesValue("TOPICTITLE_FIELD") || "TopicTitle";
+
     # read the formfield value
-    $topicTitle = $meta->get('FIELD', 'TopicTitle');
+    $topicTitle = $meta->get('FIELD', $topicTitleField);
     $topicTitle = $topicTitle->{value} if $topicTitle;
 
     # read the topic preference
@@ -520,25 +522,25 @@ sub findTopicMethod {
     $topicType =~ s/^\s+//o;
     $topicType =~ s/\s+$//o;
 
-    writeDebug(".... topicType=$topicType");
+    #writeDebug(".... topicType=$topicType");
 
-    writeDebug("1");
+    #writeDebug("1");
 
     # find it in the web where this type is implemented
     my $topicTypeObj = $formDB->fastget($topicType);
     next unless $topicTypeObj;
 
-    writeDebug("2");
+    #writeDebug("2");
 
     $form = $topicTypeObj->fastget('form');
     next unless $form;
 
-    writeDebug("3");
+    #writeDebug("3");
 
     $formObj = $topicTypeObj->fastget($form);
     next unless $formObj;
 
-    writeDebug("4");
+    #writeDebug("4");
 
     my $targetWeb;
     my $target = $formObj->fastget('Target');
@@ -555,7 +557,11 @@ sub findTopicMethod {
     return ($targetWeb, $theMethod) if $targetDB && $targetDB->fastget($theMethod);
 
     #writeDebug("6");
+
+    return ($targetWeb, $theTopic) if $targetDB && $targetDB->fastget($theTopic);
   }
+
+  
 
   writeDebug("... nothing found");
   return;

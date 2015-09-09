@@ -15,9 +15,9 @@ properties.
 
 *DBCALL* is named "call" and not "include" as its main purpose is to ease 
 <nop>WikiApplications where <nop>TopicFunctions are treated as stored procedures.
-It fetches pre-compiled topics or sections of it. "Glue" chars
-(see Foswiki:Extensions:GluePlugin) are applied in advance so that the actual rendering time
-is minimized. DBCALL does therefore not allow to call "external" pages as INCLUDE allows.
+
+DBCALL does not allow to call "external" pages as INCLUDE allows.
+
 DBCALL's "warn" parameter can only be set to "on" and "off" and does not allow 
 alternative content in case of a warning. The "pattern" feature used to extract a fragment from
 an INCLUDEd text using regular expression  has been dropped.
@@ -356,6 +356,24 @@ web one <nop>WikiApplication making use of this plugin.
 returns a database object. See the Foswiki:Extensions::DBCacheContrib documentation
 for its interfaces.
 
+---++++ registerIndexTopicHandler()
+This registers a function to the plugin to be called when a topic is indexed. It will then give each registered
+index handler a chance to operate on the object being indexed. This can be used to add additional info to be stored.
+
+Example usage:
+
+<verbatim>
+use Foswiki::Plugins::DBCachePlugin;
+
+Foswiki::Plugins::DBCachePlugin::registerIndexTopicHandler(sub {
+  my ($db, $obj, $web, $topic, $meta, $text) = @_;
+  
+  ...
+  $obj->set("foo", "bar");
+});
+</verbatim>
+
+
 ---+++ <nop>DBCachePlugin::WebDB 
 This implements the database object that is used to access the topic records in
 a web. Note, that for each web there is exactly one <nop>WebDB database object.
@@ -365,7 +383,7 @@ A database object is fetched (and initialized if needed) by the
 ---++++ dbQuery()
 The DBQUERY functionality can be access from within perl using the plugins =dbQuery()= method.
 
-| *(@$topicNames, %$topicObjs, $errorMsg) = $db-&gt;dbQuery([$search, @$topics, $order, $reverse, $include, $exclude])* ||
+| *$hits = $db-&gt;dbQuery([$search, @$topics, $order, $reverse, $include, $exclude, $hits])* ||
 | =webDB= | database object |
 | =search= | search clause |
 | =topics= | restrict search to this list of topics |
@@ -375,9 +393,19 @@ The DBQUERY functionality can be access from within perl using the plugins =dbQu
 | =reverse=on,off= | revert the sorting order |
 | =include= | pattern that topic names must match to be considered a hit |
 | =exclude= | pattern that topic names must _not_ match to be considered a hit |
+| =hits= | a result object holding all found topics; will be augmented if provided to =dbQuery= as an optional parameter |
 
-returns a list pointer of all found topics names, a hash pointer to an array of all found
-topic objects (keys are the name of the topics) and a possibly defined error message.
+Example usage:
+
+<verbatim>
+my $db = Foswiki::Plugins::DBCachePlugin::getDB("Main");
+my $hits = $db->dbQuery($query, undef, $order, $reverse, $include, $exclude);
+
+while (my $obj = $hits->next) {
+  my $topicName = $obj->fastget("topic");
+  ...
+}
+</verbatim>
 
 ---++++ getFormField()
 Access the formfield value of an arbitrary topic.
@@ -387,8 +415,6 @@ Access the formfield value of an arbitrary topic.
 | =formfield= | a formfield name |
 
 returns the value of the named formfield 
-
-<!-- %RED%TODO: document the rest of the methods %ENDCOLOR% -->
 
 ---++ Plugin Settings
 See also DBCacheContrib for additional configuration settings.
@@ -422,6 +448,9 @@ automatically from there on.
    * Set SHORTDESCRIPTION = Lightweight frontend to the <nop>DBCacheContrib
 -->
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  09 Sep 2015: | new perl api to register index handlers; \
+                  moved indexing meta comments to Foswiki:Extensions/MetaCommentPlugin;\
+                  fixed fallback of polymorphic calling semantics of DBCALL{topic->method} |
 |  31 Aug 2015: | added support for DBQUERY of multiple webs |
 |  25 May 2015: | added =sections= to database, a list of known named sections |
 |  04 Mar 2015: | fixing interaction between DBDUMP generating a heading and Foswiki:Extensions/EditChapterPlugin |
@@ -556,8 +585,8 @@ automatically from there on.
 %META:FIELD{name="Author" title="Author" value="Michael Daum"}%
 %META:FIELD{name="Copyright" title="Copyright" value="2005-2015, Michael Daum http://michaeldaumconsulting.com"}%
 %META:FIELD{name="License" title="License" value="GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]])"}%
-%META:FIELD{name="Release" title="Release" value="31 Aug 2015"}%
+%META:FIELD{name="Release" title="Release" value="%$RELEASE%"}%
 %META:FIELD{name="Repository" title="Repository" value="https://github.com/foswiki/DBCachePlugin"}%
 %META:FIELD{name="Home" title="Home" value="Foswiki:Extensions/%TOPIC%"}%
 %META:FIELD{name="Support" title="Support" value="Foswiki:Support/%TOPIC%"}%
-%META:FIELD{name="Version" title="Version" value="8.00"}%
+%META:FIELD{name="Version" title="Version" value="%$VERSION%"}%
