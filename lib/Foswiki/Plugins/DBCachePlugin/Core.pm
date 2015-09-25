@@ -355,7 +355,7 @@ sub handleDBQUERY {
     if ($theWebs eq 'all') {
       @webs = Foswiki::Func::getListOfWebs();
     } else {
-      my $webPattern = join("|", split(/\s*,\s*/, $theWebs));
+      my $webPattern = '^('.join("|", split(/\s*,\s*/, $theWebs)).')$';
       @webs = grep {/$webPattern/} Foswiki::Func::getListOfWebs();
     }
   } else {

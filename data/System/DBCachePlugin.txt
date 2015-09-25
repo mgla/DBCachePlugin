@@ -1,5 +1,8 @@
 %META:TOPICINFO{author="ProjectContributor" comment="" date="1437149467" format="1.1" version="1"}%
 ---+!! <nop>%TOPIC%
+%SHORTDESCRIPTION%
+
+
 %TOC%
 
 ---++ Description
@@ -443,15 +446,12 @@ to generate all caches initially. Then switch on the web server again. The cache
 automatically from there on.
 </div>
 
----++ Dependencies:
+---++ Dependencies
 %$DEPENDENCIES% 
-
-<!-- 
-   * Set SHORTDESCRIPTION = Lightweight frontend to the <nop>DBCacheContrib
--->
 
 ---++ Change History
 
+|  25 Sep 2015: | fixed creation of web pattern based on webs param to DBQUERY |
 |  09 Sep 2015: | new perl api to register index handlers; \
                   moved indexing meta comments to Foswiki:Extensions/MetaCommentPlugin;\
                   fixed fallback of polymorphic calling semantics of DBCALL{topic->method} |
@@ -584,6 +584,11 @@ automatically from there on.
 |  26 Jan 2006: | fixed internal links in DBCALL; \
                   support for STARTSECTION, old SECTION being deprecated |
 |  24 Nov 2005: | Initial version |
+
+<!-- 
+   * Set SHORTDESCRIPTION = %$SHORTDESCRIPTION%
+-->
+
 
 %META:FORM{name="PackageForm"}%
 %META:FIELD{name="Author" title="Author" value="Michael Daum"}%
