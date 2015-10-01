@@ -108,8 +108,6 @@ sub renderWikiWordHandler {
 sub afterSaveHandler {
   my ($web, $topic, $newWeb, $newTopic, $attachment, $newAttachment) = @_;
 
-  #writeDebug("called afterSaveHandler($web, $topic, $newWeb, $newTopic, ..., ...)");
-
   $newWeb ||= $web;
   $newTopic ||= $topic;
 
@@ -118,29 +116,18 @@ sub afterSaveHandler {
     print STDERR "WARNING: DBCachePlugin can't get cache for web '$web'\n";
     return;
   }
-
   $db->loadTopic($web, $topic);
 
-  # move/rename 
-  if ($newWeb eq $web) {
-
-    if ($topic ne $newTopic) {
-      $db->loadTopic($web, $newTopic)
-    }
-  } else { # crossing webs
-    $db = getDB($newWeb); 
+  if ($newWeb ne $web || $newTopic ne $topic) { # Move/rename
+    $db = getDB($newWeb) if $newWeb ne $web;
     unless ($db) {
       print STDERR "WARNING: DBCachePlugin can't get cache for web '$newWeb'\n";
       return;
     }
-    $db->loadTopic($newWeb, $topic);
-    if ($topic ne $newTopic) {
-      $db->loadTopic($newWeb, $newTopic)
-    }
-
+    $db->loadTopic($newWeb, $newTopic);
   }
 
-  # set the internal loadTime counter to the latest modification
+  # Set the internal loadTime counter to the latest modification
   # time on disk.
   $db->getArchivist->updateCacheTime();
 }
